@@ -1,0 +1,123 @@
+﻿@*routing page*@
+@page "/editgame"
+@page "/editgame/{Id:int}"
+@rendermode InteractiveServer
+
+
+@inject NavigationManager NavigationManager
+@inject GameClient gameClient
+@inject GenerationClient generationClient
+
+<PageTitle>New Game</PageTitle>
+
+@* <div class="mt-2">
+    <a class="btn btn-primary" role="button" href="/">Back</a> @*href="/" => equal to routing to back main page as home page
+</div> *@
+
+<h3 class="text-container mt-5">New Game</h3>
+
+@if (generations is null || gameDetail is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-5">
+            <EditForm Model="@gameDetail" FormName="editGame" class="form-right" OnValidSubmit="HandleSumbit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <div class="mb-3">
+                    <label for="name" class="form-label">Name</label>
+                    <InputText id="name" @bind-Value="gameDetail.Name" class="form-control" />
+                    <ValidationMessage For="() => gameDetail.Name" />
+                </div>
+                <div class="mb-3">
+                    <label for="generation" class="form-label">Generation</label>
+                    <InputSelect id="generation" @bind-Value="gameDetail.GenerationId" class="form-select">
+                        <option value="">Select a Generation</option>
+                        @foreach (var genr in generations)
+                        {
+                            <option value="@genr.Id">@genr.Name</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => gameDetail.GenerationId" />
+                </div>
+                <div class="mb-3">
+                    <label for="prices" class="form-label">Prices</label>
+                    <InputNumber id="prices" @bind-Value="gameDetail.Prices" class="form-control" />
+                    <ValidationMessage For="() => gameDetail.Prices" />
+                </div>
+                <div class="mb-3">
+                    <label for="releasDate" class="form-label">ReleasDate</label>
+                    <InputDate id="releasDate" @bind-Value="gameDetail.ReleaseDate" class="form-control" />
+                </div>
+                <div>
+                <button type="submit" class="btn btn-primary" 
+                        data-bs-toggle="toast"
+                        data-bs-target="@GetAddGame(gameDetail)">Save</button>
+                <a role="button" class="btn btn-secondary" href="/">Cancel</a>
+                </div>
+                <ToastAdd GameDetail="@gameDetail" />
+            </EditForm>
+        </div>
+    </div>
+
+}
+
+@*C# code block*@
+@code {
+    [Parameter]
+    public int? Id {get; set;}
+
+    [SupplyParameterFromForm]
+    public GameDetail? gameDetail {get; set;}
+
+    @* private GameDetail gameDetail { get; set; } = new()
+        {
+            Name = string.Empty,
+            ReleaseDate = DateOnly.FromDateTime(DateTime.UtcNow)
+        }; *@
+
+    @* private GenerationClient generationClient = new(); *@
+  //  private GameClient gameClient = new();
+
+    private Generation[]? generations;
+    protected override void OnInitialized()
+    {
+        generations = generationClient.GetGenerations;
+    }
+
+    private void HandleSumbit()
+    {
+        ArgumentNullException.ThrowIfNull(gameDetail);
+        if (Id is null){
+            var game = gameClient.AddGame(gameDetail);
+        }
+        else{
+            gameDetail.Id = Id.Value;
+            gameClient.UpdateGame(gameDetail);
+        }
+        NavigationManager.NavigateTo("/");
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (gameDetail is not null)
+            return;
+        if (Id is not null)
+            gameDetail = gameClient.GetGameById(Id.Value);
+        else
+        {
+            gameDetail = new()
+                {
+                    Name = string.Empty,
+                    ReleaseDate = DateOnly.FromDateTime(DateTime.UtcNow)
+                };
+        }
+    }
+
+    private static string GetAddGame(GameDetail game){
+        return $"#{ToastAdd.GetToastAdd(game)}";
+    }
+}
